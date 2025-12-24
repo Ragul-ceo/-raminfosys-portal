@@ -1,0 +1,8 @@
+{
+  "name": "Copy of Raminfosys Employee Portal",
+  "description": "Comprehensive employee management system featuring AI-ready role-based workflow, face capture check-in, geolocation tracking, task planning, and leave management.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
