@@ -4,7 +4,6 @@ WORKDIR /app
 COPY package*.json ./
 COPY tsconfig.json ./
 COPY vite.config.ts ./
-COPY .yarnrc.yml ./ || true
 RUN npm ci --silent
 COPY . ./
 RUN npm run build
