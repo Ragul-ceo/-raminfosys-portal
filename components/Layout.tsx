@@ -100,16 +100,6 @@ const Layout: React.FC<LayoutProps> = ({ user, onLogout, activeTab, onTabChange,
   );
 };
 
-const SectionTitle = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
-  <div className={`text-[11px] font-black text-slate-600 uppercase tracking-[0.4em] mb-6 px-4 ${className}`}>{children}</div>
-);
-
-const SidebarLink = ({ icon, label, active = false, onClick }: { icon: string, label: string, active?: boolean, onClick: () => void }) => (
-  <div onClick={onClick} className={`flex items-center gap-5 px-6 py-5 rounded-2xl cursor-pointer transition-all duration-500 group relative ${active ? 'bg-gradient-to-r from-[#00599f] to-[#004a85] text-white shadow-2xl shadow-blue-900/40 -translate-y-0.5' : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}>
-    <span className="transition-transform group-hover:scale-125"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={icon}></path></svg></span>
-    <span className="text-[12px] font-black uppercase tracking-[0.15em]">{label}</span>
-    {active && <span className="absolute right-4 w-2 h-2 rounded-full bg-white shadow-[0_0_12px_white]"></span>}
-  </div>
-);
+// Helper components removed — not used to avoid TypeScript unused variable errors.
 
 export default Layout;

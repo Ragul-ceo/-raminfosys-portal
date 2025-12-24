@@ -29,8 +29,10 @@ const Logo: React.FC<LogoProps> = ({ className = "h-24", showTagline = false, on
         {/* Horizontal Divider Line */}
         <line x1="120" y1="785" x2="880" y2="785" stroke="#94a3b8" strokeWidth="2" />
 
-        {/* Tagline */}
-        <text x="500" y="860" textAnchor="middle" fontFamily="'Inter', sans-serif" fontStyle="italic" fontWeight="300" fontSize="64" fill="#00599f">Infinite Possibilities</text>
+        {/* Tagline (render only when requested) */}
+        {showTagline && (
+          <text x="500" y="860" textAnchor="middle" fontFamily="'Inter', sans-serif" fontStyle="italic" fontWeight="300" fontSize="64" fill="#00599f">Infinite Possibilities</text>
+        )}
       </svg>
     </div>
   );

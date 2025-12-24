@@ -126,7 +126,6 @@ class MockDB {
   
   logAttendance(userId: string, userName: string, type: 'IN' | 'OUT', lat: number, lng: number, face: string) {
     this.load();
-    const today = new Date().toLocaleDateString();
     
     if (type === 'IN') {
       const newRecord: AttendanceRecord = {
