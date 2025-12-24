@@ -3,6 +3,8 @@ import { User, Task, LeaveRequest, AttendanceRecord, UserRole, Project, Announce
 import { INITIAL_USERS, INITIAL_TASKS, INITIAL_PROJECTS } from '../constants';
 import { getAppState, saveAppState, supabase } from './supabase';
 
+const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || (window as any).__BACKEND_URL__ || '';
+
 class MockDB {
   private users: User[] = [];
   private tasks: Task[] = [];
@@ -19,6 +21,7 @@ class MockDB {
       }
     });
   }
+  
 
   public load() {
     const get = (key: string, def: any) => {
@@ -30,7 +33,46 @@ class MockDB {
         return def;
       }
     };
-    this.users = get('ram_users', INITIAL_USERS);
+      this.users = get('ram_users', INITIAL_USERS);
+    
+      // Try to sync from backend `/state` first, else Supabase app_state (non-blocking)
+      try {
+        if (BACKEND_URL) {
+          void fetch(`${BACKEND_URL.replace(/\/$/, '')}/state`).then(r => r.ok ? r.json() : null).then((s) => {
+            if (!s) return;
+            if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
+            if (s.tasks) localStorage.setItem('ram_tasks', JSON.stringify(s.tasks));
+            if (s.leaves) localStorage.setItem('ram_leaves', JSON.stringify(s.leaves));
+            if (s.attendance) localStorage.setItem('ram_attendance', JSON.stringify(s.attendance));
+            if (s.projects) localStorage.setItem('ram_projects', JSON.stringify(s.projects));
+            if (s.announcements) localStorage.setItem('ram_comms', JSON.stringify(s.announcements));
+            this.users = JSON.parse(localStorage.getItem('ram_users') || '[]');
+            this.tasks = JSON.parse(localStorage.getItem('ram_tasks') || '[]');
+            this.leaves = JSON.parse(localStorage.getItem('ram_leaves') || '[]');
+            this.attendance = JSON.parse(localStorage.getItem('ram_attendance') || '[]');
+            this.projects = JSON.parse(localStorage.getItem('ram_projects') || '[]');
+            this.announcements = JSON.parse(localStorage.getItem('ram_comms') || '[]');
+            window.dispatchEvent(new Event('storage'));
+          }).catch(() => {});
+        } else if (supabase) {
+          void getAppState().then((s) => {
+            if (!s) return;
+            if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
+            if (s.tasks) localStorage.setItem('ram_tasks', JSON.stringify(s.tasks));
+            if (s.leaves) localStorage.setItem('ram_leaves', JSON.stringify(s.leaves));
+            if (s.attendance) localStorage.setItem('ram_attendance', JSON.stringify(s.attendance));
+            if (s.projects) localStorage.setItem('ram_projects', JSON.stringify(s.projects));
+            if (s.announcements) localStorage.setItem('ram_comms', JSON.stringify(s.announcements));
+            this.users = JSON.parse(localStorage.getItem('ram_users') || '[]');
+            this.tasks = JSON.parse(localStorage.getItem('ram_tasks') || '[]');
+            this.leaves = JSON.parse(localStorage.getItem('ram_leaves') || '[]');
+            this.attendance = JSON.parse(localStorage.getItem('ram_attendance') || '[]');
+            this.projects = JSON.parse(localStorage.getItem('ram_projects') || '[]');
+            this.announcements = JSON.parse(localStorage.getItem('ram_comms') || '[]');
+            window.dispatchEvent(new Event('storage'));
+          }).catch(() => {});
+        }
+      } catch (e) { /* ignore */ }
     this.tasks = get('ram_tasks', INITIAL_TASKS);
     this.leaves = get('ram_leaves', []);
     this.attendance = get('ram_attendance', []);
@@ -45,28 +87,7 @@ class MockDB {
         priority: 'NORMAL'
       }
     ]);
-
-    // Try to sync from Supabase app_state when available (non-blocking)
-    try {
-      if (supabase) {
-        void getAppState().then((s) => {
-          if (!s) return;
-          if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
-          if (s.tasks) localStorage.setItem('ram_tasks', JSON.stringify(s.tasks));
-          if (s.leaves) localStorage.setItem('ram_leaves', JSON.stringify(s.leaves));
-          if (s.attendance) localStorage.setItem('ram_attendance', JSON.stringify(s.attendance));
-          if (s.projects) localStorage.setItem('ram_projects', JSON.stringify(s.projects));
-          if (s.announcements) localStorage.setItem('ram_comms', JSON.stringify(s.announcements));
-          this.users = JSON.parse(localStorage.getItem('ram_users') || '[]');
-          this.tasks = JSON.parse(localStorage.getItem('ram_tasks') || '[]');
-          this.leaves = JSON.parse(localStorage.getItem('ram_leaves') || '[]');
-          this.attendance = JSON.parse(localStorage.getItem('ram_attendance') || '[]');
-          this.projects = JSON.parse(localStorage.getItem('ram_projects') || '[]');
-          this.announcements = JSON.parse(localStorage.getItem('ram_comms') || '[]');
-          window.dispatchEvent(new Event('storage'));
-        }).catch(() => {});
-      }
-    } catch (e) { /* ignore */ }
+    
   }
 
   private save() {
@@ -97,7 +118,6 @@ class MockDB {
   // Ensure remote app_state is persisted and return success flag
   public async syncRemote(): Promise<boolean> {
     try {
-      if (!supabase) return false;
       const payload = {
         users: this.users,
         tasks: this.tasks,
@@ -106,6 +126,21 @@ class MockDB {
         projects: this.projects,
         announcements: this.announcements
       };
+      // Prefer backend POST if available
+      if (BACKEND_URL) {
+        try {
+          const res = await fetch(`${BACKEND_URL.replace(/\/$/, '')}/state`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) return true;
+        } catch (e) {
+          console.warn('syncRemote POST /state failed', e);
+        }
+      }
+
+      if (!supabase) return false;
       return await saveAppState(payload);
     } catch (e) {
       console.warn('syncRemote failed', e);
