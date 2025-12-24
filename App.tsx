@@ -111,37 +111,46 @@ const App: React.FC = () => {
     setShowAddTaskModal(false);
   };
 
-  const handleAddUser = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    db.createUser({
-      name: fd.get('name') as string,
-      username: fd.get('username') as string,
-      email: fd.get('email') as string,
-      password: fd.get('password') as string,
-      department: fd.get('department') as string,
-      role: fd.get('role') as UserRole,
-      isApproved: true
-    });
-    refreshState();
-    setShowAddUserModal(false);
+    try {
+      await db.createUser({
+        name: fd.get('name') as string,
+        username: fd.get('username') as string,
+        email: fd.get('email') as string,
+        password: fd.get('password') as string,
+        department: fd.get('department') as string,
+        role: fd.get('role') as UserRole,
+        isApproved: true
+      });
+      // refresh after remote sync attempt
+      refreshState();
+      setShowAddUserModal(false);
+    } catch (err) {
+      console.error('handleAddUser failed', err);
+      alert('Failed to create user. Check console for details.');
+    }
   };
 
-  const handleUpdateUser = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdateUser = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingUser) return;
     const fd = new FormData(e.currentTarget);
-    
-    db.updateUser(editingUser.id, {
-      name: fd.get('name') as string,
-      username: fd.get('username') as string,
-      department: fd.get('department') as string,
-      role: fd.get('role') as UserRole,
-      isApproved: fd.get('isApproved') === 'on'
-    });
-    
-    refreshState();
-    setEditingUser(null);
+    try {
+      await db.updateUser(editingUser.id, {
+        name: fd.get('name') as string,
+        username: fd.get('username') as string,
+        department: fd.get('department') as string,
+        role: fd.get('role') as UserRole,
+        isApproved: fd.get('isApproved') === 'on'
+      });
+      refreshState();
+      setEditingUser(null);
+    } catch (err) {
+      console.error('handleUpdateUser failed', err);
+      alert('Failed to update user. Check console for details.');
+    }
   };
 
   const handleRequestLeave = (e: React.FormEvent<HTMLFormElement>) => {

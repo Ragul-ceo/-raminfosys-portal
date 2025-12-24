@@ -78,7 +78,7 @@ class MockDB {
     localStorage.setItem('ram_comms', JSON.stringify(this.announcements));
     window.dispatchEvent(new Event('storage'));
 
-    // Try to sync to Supabase app_state (non-blocking)
+    // Fire-and-forget remote sync (keep UI responsive)
     try {
       if (supabase) {
         const payload = {
@@ -89,15 +89,34 @@ class MockDB {
           projects: this.projects,
           announcements: this.announcements
         };
-        void saveAppState(payload).catch(() => {});
+        void saveAppState(payload).catch((err) => console.warn('async saveAppState failed', err));
       }
-    } catch (e) { /* ignore */ }
+    } catch (e) { console.warn('save() supabase sync failed', e); }
+  }
+
+  // Ensure remote app_state is persisted and return success flag
+  public async syncRemote(): Promise<boolean> {
+    try {
+      if (!supabase) return false;
+      const payload = {
+        users: this.users,
+        tasks: this.tasks,
+        leaves: this.leaves,
+        attendance: this.attendance,
+        projects: this.projects,
+        announcements: this.announcements
+      };
+      return await saveAppState(payload);
+    } catch (e) {
+      console.warn('syncRemote failed', e);
+      return false;
+    }
   }
 
   getProjects() { this.load(); return [...this.projects]; }
   getUsers() { this.load(); return [...this.users]; }
   
-  createUser(u: Partial<User>) {
+  async createUser(u: Partial<User>) {
     this.load();
     const newUser: User = { 
       id: `u_${Math.random().toString(36).substr(2, 9)}`, 
@@ -113,13 +132,22 @@ class MockDB {
     };
     this.users = [...this.users, newUser]; 
     this.save(); 
+    // try to persist to remote and surface failure via console
+    try {
+      const ok = await this.syncRemote();
+      if (!ok) console.warn('createUser: remote sync failed (check Supabase permissions)');
+    } catch (e) { console.warn('createUser sync error', e); }
     return newUser;
   }
   
-  updateUser(id: string, data: Partial<User>) {
+  async updateUser(id: string, data: Partial<User>) {
     this.load();
     this.users = this.users.map(u => u.id === id ? { ...u, ...data } : u);
     this.save();
+    try {
+      const ok = await this.syncRemote();
+      if (!ok) console.warn('updateUser: remote sync failed (check Supabase permissions)');
+    } catch (e) { console.warn('updateUser sync error', e); }
   }
 
   getAttendance() { this.load(); return [...this.attendance]; }
