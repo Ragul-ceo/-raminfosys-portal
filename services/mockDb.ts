@@ -1,6 +1,7 @@
 
 import { User, Task, LeaveRequest, AttendanceRecord, UserRole, Project, Announcement } from '../types';
 import { INITIAL_USERS, INITIAL_TASKS, INITIAL_PROJECTS } from '../constants';
+import { getAppState, saveAppState, supabase } from './supabase';
 
 class MockDB {
   private users: User[] = [];
@@ -45,22 +46,17 @@ class MockDB {
       }
     ]);
 
-    // Try to sync from backend state when available (non-blocking)
+    // Try to sync from Supabase app_state when available (non-blocking)
     try {
-      const BACKEND = (import.meta as any).env?.VITE_BACKEND_URL || (window as any).__BACKEND_URL__ || '';
-      if (BACKEND) {
-        fetch(`${BACKEND.replace(/\/+$/, '')}/state`).then(async (r) => {
-          if (!r.ok) return;
-          const s = await r.json();
+      if (supabase) {
+        void getAppState().then((s) => {
           if (!s) return;
-          // Merge server state into localStorage (server wins)
           if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
           if (s.tasks) localStorage.setItem('ram_tasks', JSON.stringify(s.tasks));
           if (s.leaves) localStorage.setItem('ram_leaves', JSON.stringify(s.leaves));
           if (s.attendance) localStorage.setItem('ram_attendance', JSON.stringify(s.attendance));
           if (s.projects) localStorage.setItem('ram_projects', JSON.stringify(s.projects));
           if (s.announcements) localStorage.setItem('ram_comms', JSON.stringify(s.announcements));
-          // reload in-memory copies
           this.users = JSON.parse(localStorage.getItem('ram_users') || '[]');
           this.tasks = JSON.parse(localStorage.getItem('ram_tasks') || '[]');
           this.leaves = JSON.parse(localStorage.getItem('ram_leaves') || '[]');
@@ -82,10 +78,9 @@ class MockDB {
     localStorage.setItem('ram_comms', JSON.stringify(this.announcements));
     window.dispatchEvent(new Event('storage'));
 
-    // Try to sync to backend (non-blocking). Backend URL is provided via Vite env `VITE_BACKEND_URL` or global var.
+    // Try to sync to Supabase app_state (non-blocking)
     try {
-      const BACKEND = (import.meta as any).env?.VITE_BACKEND_URL || (window as any).__BACKEND_URL__ || '';
-      if (BACKEND) {
+      if (supabase) {
         const payload = {
           users: this.users,
           tasks: this.tasks,
@@ -94,11 +89,7 @@ class MockDB {
           projects: this.projects,
           announcements: this.announcements
         };
-        void fetch(`${BACKEND.replace(/\/+$/, '')}/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).catch(() => {});
+        void saveAppState(payload).catch(() => {});
       }
     } catch (e) { /* ignore */ }
   }
