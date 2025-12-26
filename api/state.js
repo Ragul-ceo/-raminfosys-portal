@@ -7,7 +7,16 @@ const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY || process.e
 
 let pool = null;
 if (DATABASE_URL) {
-  pool = new Pool({ connectionString: DATABASE_URL });
+  // Accept secure connections (Supabase/Postgres over TLS). If the
+  // connection string requires SSL (e.g. Supabase), set `ssl` so the
+  // node Postgres client will connect with TLS. We disable
+  // certificate verification for simplicity since Supabase uses a
+  // trusted cert, but some hosts may require stricter checks.
+  const poolConfig = { connectionString: DATABASE_URL };
+  if (DATABASE_URL.includes('supabase.co') || process.env.PGSSLMODE === 'require') {
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+  pool = new Pool(poolConfig);
 }
 
 function jsonOk(res, data) {
