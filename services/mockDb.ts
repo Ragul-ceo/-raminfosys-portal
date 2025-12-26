@@ -39,7 +39,8 @@ class MockDB {
     
       // Try to sync from backend `/state` first (same-origin by default), else Supabase app_state (non-blocking)
       try {
-        void fetch(API_STATE_PATH).then(r => r.ok ? r.json() : null).then((s) => {
+        if (API_STATE_PATH) {
+          void fetch(API_STATE_PATH).then(r => r.ok ? r.json() : null).then((s) => {
             if (!s) return;
             if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
             if (s.tasks) localStorage.setItem('ram_tasks', JSON.stringify(s.tasks));
@@ -54,8 +55,12 @@ class MockDB {
             this.projects = JSON.parse(localStorage.getItem('ram_projects') || '[]');
             this.announcements = JSON.parse(localStorage.getItem('ram_comms') || '[]');
             window.dispatchEvent(new Event('storage'));
-          }).catch(() => {});
-        } else if (supabase) {
+          }).catch(() => {
+            // backend fetch failed; try Supabase below
+          });
+        }
+
+        if (!API_STATE_PATH && supabase) {
           void getAppState().then((s) => {
             if (!s) return;
             if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
