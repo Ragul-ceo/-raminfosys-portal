@@ -4,6 +4,8 @@ import { INITIAL_USERS, INITIAL_TASKS, INITIAL_PROJECTS } from '../constants';
 import { getAppState, saveAppState, supabase } from './supabase';
 
 const BACKEND_URL = (import.meta as any).env?.VITE_BACKEND_URL || (window as any).__BACKEND_URL__ || '';
+// Prefer same-origin serverless API if no BACKEND_URL configured
+const API_STATE_PATH = BACKEND_URL ? `${BACKEND_URL.replace(/\/$/, '')}/state` : '/api/state';
 
 class MockDB {
   private users: User[] = [];
@@ -35,10 +37,9 @@ class MockDB {
     };
       this.users = get('ram_users', INITIAL_USERS);
     
-      // Try to sync from backend `/state` first, else Supabase app_state (non-blocking)
+      // Try to sync from backend `/state` first (same-origin by default), else Supabase app_state (non-blocking)
       try {
-        if (BACKEND_URL) {
-          void fetch(`${BACKEND_URL.replace(/\/$/, '')}/state`).then(r => r.ok ? r.json() : null).then((s) => {
+        void fetch(API_STATE_PATH).then(r => r.ok ? r.json() : null).then((s) => {
             if (!s) return;
             if (s.users) localStorage.setItem('ram_users', JSON.stringify(s.users));
             if (s.tasks) localStorage.setItem('ram_tasks', JSON.stringify(s.tasks));
@@ -101,15 +102,25 @@ class MockDB {
 
     // Fire-and-forget remote sync (keep UI responsive)
     try {
+      const payload = {
+        users: this.users,
+        tasks: this.tasks,
+        leaves: this.leaves,
+        attendance: this.attendance,
+        projects: this.projects,
+        announcements: this.announcements
+      };
+      // Prefer same-origin backend if available
+      try {
+        void fetch(API_STATE_PATH, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(r => { if (!r.ok) console.warn('backend /state POST failed', r.status); }).catch(e => console.warn('backend /state POST error', e));
+      } catch (e) { console.warn('save() backend POST failed', e); }
+
+      // Also attempt Supabase as fallback
       if (supabase) {
-        const payload = {
-          users: this.users,
-          tasks: this.tasks,
-          leaves: this.leaves,
-          attendance: this.attendance,
-          projects: this.projects,
-          announcements: this.announcements
-        };
         void saveAppState(payload).catch((err) => console.warn('async saveAppState failed', err));
       }
     } catch (e) { console.warn('save() supabase sync failed', e); }
